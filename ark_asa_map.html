@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARK: Survival Ascended — Field Map</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+<link id="leaflet-css-fallback" rel="stylesheet" href="" disabled>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep:    #070a0e;
+  --bg-dark:    #0c1018;
+  --bg-panel:   #101720;
+  --bg-panel2:  #141d28;
+  --border:     #1a2e45;
+  --border-hi:  #254160;
+  --gold:       #c4a052;
+  --gold-dim:   #6e5a2c;
+  --cyan:       #00c8e8;
+  --cyan-dim:   #005a6a;
+  --text:       #c8bfa8;
+  --text-dim:   #5a6878;
+  --green:      #22c55e;
+  --red:        #ef4444;
+  --amber:      #f59e0b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:'Barlow Condensed',sans-serif;background:var(--bg-deep);color:var(--text)}
+
+/* ── HEADER ─────────────────────────────── */
+#hdr{
+  height:48px;background:var(--bg-panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;gap:14px;flex-shrink:0;
+  position:relative;z-index:100;
+}
+#hdr::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--cyan) 40%,var(--gold) 60%,transparent 100%);
+  opacity:.25;
+}
+.logo{
+  font-family:'Rajdhani',sans-serif;font-weight:700;font-size:17px;
+  letter-spacing:3px;color:var(--gold);white-space:nowrap;text-transform:uppercase;
+}
+.logo em{color:var(--cyan);font-style:normal}
+.hdiv{width:1px;height:22px;background:var(--border)}
+.map-sel-wrap{display:flex;align-items:center;gap:7px}
+.map-sel-wrap label{font-size:10px;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase}
+select.styled{
+  background:var(--bg-dark);border:1px solid var(--border);color:var(--text);
+  padding:3px 8px;font-family:'Barlow Condensed',sans-serif;font-size:13px;
+  border-radius:2px;cursor:pointer;outline:none;
+}
+select.styled:focus{border-color:var(--cyan)}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.gist-pill{
+  display:flex;align-items:center;gap:5px;
+  background:var(--bg-dark);border:1px solid var(--border);
+  border-radius:2px;padding:3px 10px;
+  font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);
+}
+.gist-dot{width:6px;height:6px;border-radius:50%;background:var(--text-dim);flex-shrink:0}
+.gist-dot.ok{background:var(--green)}
+.gist-dot.err{background:var(--red)}
+.btn{
+  padding:4px 13px;font-family:'Rajdhani',sans-serif;font-weight:600;
+  font-size:12px;letter-spacing:1px;text-transform:uppercase;
+  border:1px solid;border-radius:2px;cursor:pointer;background:transparent;
+  transition:all .12s;white-space:nowrap;
+}
+.btn-ghost{border-color:var(--border-hi);color:var(--text-dim)}
+.btn-ghost:hover{border-color:var(--cyan);color:var(--cyan)}
+.btn-gold{border-color:var(--gold-dim);color:var(--gold)}
+.btn-gold:hover{background:var(--gold);color:var(--bg-deep)}
+.btn-green{border-color:#166534;color:var(--green)}
+.btn-green:hover{background:var(--green);color:var(--bg-deep)}
+.btn-red{border-color:#7f1d1d;color:var(--red)}
+.btn-red:hover{background:var(--red);color:white}
+.btn-cyan{border-color:var(--cyan-dim);color:var(--cyan)}
+.btn-cyan:hover{background:var(--cyan);color:var(--bg-deep)}
+.btn-block{width:100%;text-align:center;padding:6px 0;display:block}
+
+/* ── MAIN LAYOUT ─────────────────────────── */
+#main{display:flex;height:calc(100vh - 48px)}
+
+/* ── SIDEBAR ─────────────────────────────── */
+#sb{
+  width:236px;background:var(--bg-panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;
+}
+#sb-scroll{flex:1;overflow-y:auto;overflow-x:hidden}
+#sb-scroll::-webkit-scrollbar{width:3px}
+#sb-scroll::-webkit-scrollbar-track{background:var(--bg-dark)}
+#sb-scroll::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px}
+.sec{border-bottom:1px solid var(--border)}
+.sec-hdr{
+  padding:7px 11px;display:flex;align-items:center;justify-content:space-between;
+  cursor:pointer;user-select:none;background:var(--bg-panel2);
+  transition:background .1s;
+}
+.sec-hdr:hover{background:#182030}
+.sec-title{
+  font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;
+  letter-spacing:2px;text-transform:uppercase;color:var(--gold);
+  display:flex;align-items:center;gap:6px;
+}
+.sec-pip{width:5px;height:5px;border-radius:50%}
+.sec-arr{font-size:9px;color:var(--text-dim);transition:transform .18s}
+.sec-arr.up{transform:rotate(-90deg)}
+.sec-body{padding:3px 0}
+.sec-body.hide{display:none}
+.sel-row{
+  padding:2px 11px 4px;display:flex;gap:10px;
+  border-bottom:1px solid var(--border);margin-bottom:2px;
+}
+.sel-row button{
+  background:none;border:none;font-size:9px;letter-spacing:1px;
+  text-transform:uppercase;color:var(--text-dim);cursor:pointer;padding:0;
+  transition:color .1s;
+}
+.sel-row button:hover{color:var(--cyan)}
+.lay-item{
+  padding:3px 11px;display:flex;align-items:center;gap:7px;
+  cursor:pointer;transition:background .08s;
+}
+.lay-item:hover{background:rgba(196,160,82,.06)}
+.chk{
+  width:11px;height:11px;border:1px solid;border-radius:1px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;transition:all .1s;
+}
+.chk.on::after{content:'✓';font-size:8px;line-height:1}
+.cdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.lay-lbl{font-size:12px;flex:1;color:var(--text)}
+.lay-ct{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim)}
+#sb-foot{padding:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:5px;flex-shrink:0}
+
+/* ── MAP ─────────────────────────────────── */
+#map-wrap{flex:1;position:relative;background:#020508}
+#map{width:100%;height:100%}
+#map.pin-mode{cursor:crosshair!important}
+#pin-banner{
+  display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(0,200,232,.12);border:1px solid var(--cyan);
+  color:var(--cyan);padding:5px 18px;
+  font-family:'Rajdhani',sans-serif;font-weight:600;font-size:12px;
+  letter-spacing:2px;text-transform:uppercase;z-index:800;border-radius:2px;
+  animation:pulseB 1.6s ease-in-out infinite;
+}
+#pin-banner.on{display:block}
+@keyframes pulseB{
+  0%,100%{border-color:var(--cyan);box-shadow:0 0 10px rgba(0,200,232,.3)}
+  50%{border-color:rgba(0,200,232,.3);box-shadow:none}
+}
+#statusbar{
+  position:absolute;bottom:0;left:0;right:0;height:22px;
+  background:rgba(7,10,14,.88);border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 11px;gap:14px;
+  font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);
+  z-index:700;
+}
+#coord-disp{color:var(--cyan)}
+#stat-msg{margin-left:auto;color:var(--amber)}
+.warn-tag{color:var(--red);font-size:9px}
+
+/* ── LEAFLET OVERRIDES ───────────────────── */
+.leaflet-popup-content-wrapper{
+  background:var(--bg-panel)!important;border:1px solid var(--border-hi)!important;
+  border-radius:3px!important;color:var(--text)!important;
+  box-shadow:0 6px 24px rgba(0,0,0,.7)!important;padding:0!important;
+}
+.leaflet-popup-content{margin:0!important;line-height:1!important}
+.leaflet-popup-tip{background:var(--bg-panel)!important}
+.leaflet-popup-close-button{color:var(--text-dim)!important;top:6px!important;right:8px!important}
+.leaflet-popup-close-button:hover{color:var(--red)!important}
+.leaflet-control-zoom a{
+  background:var(--bg-panel)!important;color:var(--text)!important;
+  border-color:var(--border)!important;
+}
+.leaflet-control-zoom a:hover{background:var(--bg-panel2)!important;color:var(--gold)!important}
+
+/* ── POPUP CONTENT ───────────────────────── */
+.pop{padding:12px 14px;min-width:180px}
+.pop-cat{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px}
+.pop-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--gold);margin-bottom:5px}
+.pop-coords{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);margin-bottom:3px}
+.pop-src{font-size:9px;color:var(--text-dim)}
+.pop-note{font-size:11px;color:var(--text);margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
+.pop-del{
+  margin-top:8px;padding:3px 9px;background:none;border:1px solid var(--red);
+  color:var(--red);font-size:10px;cursor:pointer;border-radius:2px;
+  font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+}
+.pop-del:hover{background:var(--red);color:white}
+.pop-verify{
+  display:inline-block;margin-top:4px;font-size:9px;color:var(--amber);
+  padding:1px 5px;border:1px solid #92400e;border-radius:1px;
+}
+
+/* ── MODALS ──────────────────────────────── */
+.ov{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
+  z-index:2000;align-items:center;justify-content:center;
+}
+.ov.on{display:flex}
+.modal{
+  background:var(--bg-panel);border:1px solid var(--border-hi);border-radius:4px;
+  padding:22px;min-width:370px;max-width:460px;width:100%;position:relative;
+}
+.modal-title{
+  font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;
+  letter-spacing:2px;text-transform:uppercase;color:var(--gold);
+  margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);
+}
+.modal-x{
+  position:absolute;top:14px;right:14px;background:none;border:none;
+  color:var(--text-dim);font-size:16px;cursor:pointer;
+}
+.modal-x:hover{color:var(--red)}
+.fg{margin-bottom:12px}
+.flbl{
+  display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text-dim);margin-bottom:4px;
+}
+.finp{
+  width:100%;background:var(--bg-dark);border:1px solid var(--border);
+  color:var(--text);padding:6px 9px;font-family:'Barlow Condensed',sans-serif;
+  font-size:13px;border-radius:2px;transition:border-color .12s;outline:none;
+}
+.finp:focus{border-color:var(--cyan)}
+textarea.finp{resize:vertical;min-height:65px}
+select.finp{cursor:pointer}
+.fhint{font-size:9px;color:var(--text-dim);margin-top:3px;line-height:1.4}
+.fhint strong{color:var(--amber)}
+.modal-foot{
+  display:flex;gap:7px;justify-content:flex-end;margin-top:16px;
+  padding-top:12px;border-top:1px solid var(--border);
+}
+.info-box{
+  background:rgba(0,200,232,.06);border:1px solid rgba(0,200,232,.2);
+  border-radius:2px;padding:7px 10px;font-size:10px;color:var(--cyan);
+  margin-bottom:12px;line-height:1.5;
+}
+.warn-box{
+  background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);
+  border-radius:2px;padding:7px 10px;font-size:10px;color:#fca5a5;
+  margin-bottom:12px;line-height:1.5;
+}
+
+/* colour picker */
+.colors{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.col-swatch{
+  width:18px;height:18px;border-radius:50%;border:2px solid transparent;
+  cursor:pointer;transition:border-color .12s;
+}
+.col-swatch.picked{border-color:white}
+
+/* pin coords preview */
+#new-pin-coords{
+  font-family:'Share Tech Mono',monospace;font-size:12px;
+  color:var(--cyan);padding:5px 0;
+}
+
+/* ── TOAST ───────────────────────────────── */
+#toast{
+  position:fixed;bottom:32px;right:14px;padding:9px 16px;
+  background:var(--bg-panel);border:1px solid var(--border-hi);border-radius:2px;
+  font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text);
+  z-index:3000;opacity:0;transform:translateY(6px);
+  transition:all .25s;pointer-events:none;
+}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.ok{border-color:var(--green);color:var(--green)}
+#toast.err{border-color:var(--red);color:var(--red)}
+
+/* ── MAP IMAGE RENDERING ─────────────────── */
+/* Smooth scaling at high zoom levels — prevents pixelation */
+.map-img-layer {
+  image-rendering: -webkit-optimize-contrast; /* Safari */
+  image-rendering: auto;                       /* Chrome/FF: bilinear (smooth) */
+}
+/* For maximum crispness with a very high-res source image, swap to:
+   image-rendering: high-quality;
+   This matters most — the source image resolution is the real bottleneck.
+   See the initMap comments for how to host a local high-res image. */
+
+
+.tracker-pill{
+  display:flex;align-items:center;gap:5px;
+  background:var(--bg-dark);border:1px solid var(--border);
+  border-radius:2px;padding:3px 10px;
+  font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);
+}
+.tracker-dot{width:6px;height:6px;border-radius:50%;background:var(--text-dim);flex-shrink:0}
+.tracker-dot.live{background:var(--green);animation:livePulse 2s ease-in-out infinite}
+.tracker-dot.err{background:var(--red)}
+@keyframes livePulse{
+  0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.5)}
+  50%{opacity:.7;box-shadow:0 0 0 4px rgba(34,197,94,0)}
+}
+
+/* Player list in sidebar */
+.player-entry{
+  padding:5px 11px;border-bottom:1px solid rgba(26,46,69,.5);
+  transition:background .08s;
+}
+.player-entry:last-child{border-bottom:none}
+.player-entry:hover{background:rgba(34,197,94,.04)}
+.player-row{display:flex;align-items:center;gap:7px;margin-bottom:2px}
+.player-blob{
+  width:9px;height:9px;border-radius:50%;flex-shrink:0;
+  border:1.5px solid rgba(255,255,255,.3);
+  animation:livePulse 2s ease-in-out infinite;
+}
+.player-name{font-size:12px;color:var(--text);font-weight:500;flex:1}
+.player-goto{
+  background:none;border:none;color:var(--text-dim);font-size:10px;
+  cursor:pointer;padding:0;transition:color .1s;
+}
+.player-goto:hover{color:var(--cyan)}
+.player-coords{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);padding-left:16px}
+.player-age{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);text-align:right}
+
+/* No players placeholder */
+.player-empty{
+  padding:10px 11px;font-size:11px;color:var(--text-dim);text-align:center;
+  font-style:italic;
+}
+
+/* Tracker section header status */
+.tracker-status-badge{
+  font-family:'Share Tech Mono',monospace;font-size:8px;
+  padding:1px 5px;border-radius:1px;margin-left:4px;
+  background:rgba(26,46,69,.8);color:var(--text-dim);
+}
+.tracker-status-badge.live{background:rgba(34,197,94,.15);color:var(--green)}
+.tracker-status-badge.err{background:rgba(239,68,68,.15);color:var(--red)}
+
+/* last-update bar */
+#tracker-last-update{
+  padding:3px 11px;font-family:'Share Tech Mono',monospace;font-size:8px;
+  color:var(--text-dim);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+
+/* Player map icon label */
+.player-map-label{
+  background:rgba(7,10,14,.85);border:1px solid rgba(255,255,255,.15);
+  border-radius:2px;padding:1px 5px;
+  font-family:'Rajdhani',sans-serif;font-weight:600;font-size:10px;
+  color:white;white-space:nowrap;margin-top:2px;
+  pointer-events:none;
+}
+
+/* modal section divider */
+.modal-section-sep{
+  font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;
+  letter-spacing:2px;text-transform:uppercase;color:var(--gold);
+  padding:8px 0 6px;border-top:1px solid var(--border);margin-top:4px;margin-bottom:8px;
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header id="hdr">
+  <div class="logo">ARK <em>ASA</em> · Field Map</div>
+  <div class="hdiv"></div>
+  <div class="map-sel-wrap">
+    <label>Map</label>
+    <select class="styled" id="map-sel">
+      <option value="the_island">The Island</option>
+    </select>
+  </div>
+  <div class="hdr-right">
+    <div class="gist-pill">
+      <div class="gist-dot" id="gdot"></div>
+      <span id="gstat">Gist: not configured</span>
+    </div>
+    <div class="tracker-pill" id="tracker-pill">
+      <div class="tracker-dot" id="tdot"></div>
+      <span id="tstat">Tracker: off</span>
+    </div>
+    <button class="btn btn-ghost" id="btn-pull">↓ Pull</button>
+    <button class="btn btn-ghost" id="btn-push">↑ Push</button>
+    <button class="btn btn-gold" id="btn-cfg">⚙ Settings</button>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- SIDEBAR -->
+  <aside id="sb">
+    <div id="sb-scroll">
+
+      <!-- LIVE PLAYERS -->
+      <div class="sec" id="sec-players">
+        <div class="sec-hdr" onclick="toggleSec('players')">
+          <div class="sec-title">
+            <div class="sec-pip" style="background:var(--green)"></div>
+            Live Players
+            <span class="tracker-status-badge" id="tracker-badge">OFF</span>
+          </div>
+          <span class="sec-arr" id="arr-players">▼</span>
+        </div>
+        <div class="sec-body" id="body-players">
+          <div id="tracker-last-update">
+            <span>Last update: —</span>
+            <button class="btn btn-ghost" id="btn-track-toggle" style="padding:1px 8px;font-size:9px">Start Tracking</button>
+          </div>
+          <div id="player-list">
+            <div class="player-empty">Tracking inactive</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESOURCES -->
+      <div class="sec">
+        <div class="sec-hdr" onclick="toggleSec('res')">
+          <div class="sec-title"><div class="sec-pip" style="background:var(--gold)"></div>Resources</div>
+          <span class="sec-arr" id="arr-res">▼</span>
+        </div>
+        <div class="sec-body" id="body-res">
+          <div class="sel-row">
+            <button onclick="allLayers('res')">All</button>
+            <button onclick="noneLayers('res')">None</button>
+          </div>
+          <div id="res-list"></div>
+        </div>
+      </div>
+
+      <!-- EXPLORER NOTES -->
+      <div class="sec">
+        <div class="sec-hdr" onclick="toggleSec('notes')">
+          <div class="sec-title"><div class="sec-pip" style="background:#34d399"></div>Explorer Notes</div>
+          <span class="sec-arr up" id="arr-notes">▼</span>
+        </div>
+        <div class="sec-body hide" id="body-notes">
+          <div class="sel-row">
+            <button onclick="allLayers('note')">All</button>
+            <button onclick="noneLayers('note')">None</button>
+          </div>
+          <div id="note-list"></div>
+        </div>
+      </div>
+
+      <!-- CAVES -->
+      <div class="sec">
+        <div class="sec-hdr" onclick="toggleSec('caves')">
+          <div class="sec-title"><div class="sec-pip" style="background:#dc2626"></div>Caves</div>
+          <span class="sec-arr up" id="arr-caves">▼</span>
+        </div>
+        <div class="sec-body hide" id="body-caves">
+          <div id="cave-list"></div>
+        </div>
+      </div>
+
+      <!-- ARTIFACTS -->
+      <div class="sec">
+        <div class="sec-hdr" onclick="toggleSec('art')">
+          <div class="sec-title"><div class="sec-pip" style="background:#fbbf24"></div>Artifacts</div>
+          <span class="sec-arr up" id="arr-art">▼</span>
+        </div>
+        <div class="sec-body hide" id="body-art">
+          <div id="art-list"></div>
+        </div>
+      </div>
+
+      <!-- TERMINALS -->
+      <div class="sec">
+        <div class="sec-hdr" onclick="toggleSec('term')">
+          <div class="sec-title"><div class="sec-pip" style="background:#e2e8f0"></div>Terminals</div>
+          <span class="sec-arr up" id="arr-term">▼</span>
+        </div>
+        <div class="sec-body hide" id="body-term">
+          <div id="term-list"></div>
+        </div>
+      </div>
+
+      <!-- CUSTOM PINS -->
+      <div class="sec">
+        <div class="sec-hdr" onclick="toggleSec('custom')">
+          <div class="sec-title"><div class="sec-pip" style="background:#f97316"></div>Custom Pins</div>
+          <span class="sec-arr up" id="arr-custom">▼</span>
+        </div>
+        <div class="sec-body hide" id="body-custom">
+          <div class="lay-item" onclick="toggleLayer('custom','custom')">
+            <div class="chk" id="chk-custom" style="border-color:#f97316;color:#f97316"></div>
+            <div class="cdot" style="background:#f97316"></div>
+            <span class="lay-lbl">Show All Custom</span>
+            <span class="lay-ct" id="ct-custom">0</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sb-scroll -->
+
+    <!-- FOOTER ACTIONS -->
+    <div id="sb-foot">
+      <button class="btn btn-cyan btn-block" id="btn-addpin">+ Add Custom Pin</button>
+      <button class="btn btn-ghost btn-block" id="btn-cancelpin" style="display:none">✕ Cancel Placement</button>
+    </div>
+  </aside>
+
+  <!-- MAP -->
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="pin-banner">Click map to place pin</div>
+    <div id="statusbar">
+      <span>ASA · The Island</span>
+      <span id="coord-disp">LAT — · LON —</span>
+      <span id="stat-msg"></span>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ══ SETTINGS MODAL ══════════════════════════════ -->
+<div class="ov" id="ov-cfg">
+  <div class="modal">
+    <button class="modal-x" onclick="closeOv('ov-cfg')">✕</button>
+    <div class="modal-title">Sync &amp; Settings</div>
+
+    <div class="info-box">
+      All data in this tool is <strong>ARK: Survival Ascended only</strong>. No data from ARK: Survival Evolved is used or will be used.
+    </div>
+
+    <div class="modal-section-sep">Live Player Tracking</div>
+
+    <div class="fg">
+      <label class="flbl">Tracker Endpoint URL</label>
+      <input class="finp" type="text" id="inp-tracker-url" placeholder="http://localhost:8765/players">
+      <div class="fhint">URL of the local polling script running on the server machine. Default port is <strong>8765</strong>. Leave blank to disable tracking.</div>
+    </div>
+    <div class="fg">
+      <label class="flbl">Poll Interval (seconds)</label>
+      <input class="finp" type="number" id="inp-tracker-interval" placeholder="10" min="3" max="60" value="10">
+      <div class="fhint">How often to refresh player positions. 5–10 seconds recommended. Min 3s.</div>
+    </div>
+
+    <div class="modal-section-sep">Gist Sync</div>
+
+    <div class="fg">
+      <label class="flbl">GitHub Personal Access Token</label>
+      <input class="finp" type="password" id="inp-tok" placeholder="ghp_xxxxxxxxxxxxxxxx">
+      <div class="fhint">Needs <strong>gist</strong> scope. Stored in browser sessionStorage — never sent anywhere except api.github.com.</div>
+    </div>
+    <div class="fg">
+      <label class="flbl">Gist ID</label>
+      <input class="finp" type="text" id="inp-gist" placeholder="e.g. a1b2c3d4e5f6...">
+      <div class="fhint">Create a Gist at github.com/gist. The file inside the Gist <strong>must be named</strong> <strong>ark_asa_map_data.json</strong>. Share the Gist URL with friends — they pull to sync.</div>
+    </div>
+    <div class="fg">
+      <label class="flbl">Your Name (pin attribution)</label>
+      <input class="finp" type="text" id="inp-name" placeholder="Survivor">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeOv('ov-cfg')">Cancel</button>
+      <button class="btn btn-green" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD PIN MODAL ════════════════════════════════ -->
+<div class="ov" id="ov-pin">
+  <div class="modal">
+    <button class="modal-x" onclick="cancelPin()">✕</button>
+    <div class="modal-title">Add Custom Pin</div>
+    <div class="fg">
+      <label class="flbl">Coordinates</label>
+      <div id="new-pin-coords">LAT — · LON —</div>
+    </div>
+    <div class="fg">
+      <label class="flbl">Label</label>
+      <input class="finp" type="text" id="inp-plabel" placeholder="e.g. Main Base, Spino Trap, Metal Run...">
+    </div>
+    <div class="fg">
+      <label class="flbl">Category</label>
+      <select class="finp" id="inp-pcat">
+        <option value="Base / Structure">Base / Structure</option>
+        <option value="Resource Run">Resource Run</option>
+        <option value="Taming Spot">Taming Spot</option>
+        <option value="Danger Zone">Danger Zone</option>
+        <option value="Point of Interest">Point of Interest</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="flbl">Marker Colour</label>
+      <div class="colors" id="col-picker">
+        <div class="col-swatch picked" style="background:#f97316" data-c="#f97316"></div>
+        <div class="col-swatch" style="background:#22c55e" data-c="#22c55e"></div>
+        <div class="col-swatch" style="background:#3b82f6" data-c="#3b82f6"></div>
+        <div class="col-swatch" style="background:#ef4444" data-c="#ef4444"></div>
+        <div class="col-swatch" style="background:#a855f7" data-c="#a855f7"></div>
+        <div class="col-swatch" style="background:#fbbf24" data-c="#fbbf24"></div>
+        <div class="col-swatch" style="background:#00c8e8" data-c="#00c8e8"></div>
+        <div class="col-swatch" style="background:#f472b6" data-c="#f472b6"></div>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="flbl">Notes</label>
+      <textarea class="finp" id="inp-pnotes" placeholder="Any notes about this location..."></textarea>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="cancelPin()">Cancel</button>
+      <button class="btn btn-cyan" onclick="confirmPin()">Place Pin</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ══ LEAFLET ══════════════════════════════════════ -->
+<!-- Leaflet: jsdelivr primary, unpkg fallback, inline fallback check -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'"></script>
+<script>
+// Belt-and-suspenders: if both CDNs failed, show a clear error instead of a cryptic "L is not defined"
+window.addEventListener('DOMContentLoaded', () => {
+  if (typeof L === 'undefined') {
+    document.getElementById('map').innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#c4a052;font-family:Rajdhani,sans-serif;gap:12px;padding:24px;text-align:center">' +
+      '<div style="font-size:28px;letter-spacing:3px">MAP OFFLINE</div>' +
+      '<div style="font-size:13px;color:#5a6878;max-width:360px">Leaflet.js failed to load. The map requires an internet connection on first load, or host the file on a local server with Leaflet bundled. Check your connection and refresh.</div>' +
+      '</div>';
+    return;
+  }
+  loadCfg();
+  initMap();
+  buildSidebar();
+  bindEvents();
+});
+</script>
+// ═══════════════════════════════════════════════════════════
+//  DATA — ARK SURVIVAL ASCENDED · THE ISLAND ONLY
+//  Sources:
+//    Explorer Notes: gameskinny.com/tips/ark-survival-ascended-all-explorer-notes-locations (ASA, March 2024)
+//    Resources: wikily.gg/ark-survival-ascended/maps/the-island (ASA, April 2026)
+//    Caves: ASA community-verified coordinates
+//  Coordinates: LAT/LON as shown on ASA in-game GPS (M ×2)
+//  Items marked ⚠ should be verified in-game — ASA source less certain
+// ═══════════════════════════════════════════════════════════
+
+const RESOURCES = [
+  { id:'metal', label:'Metal', color:'#9ca3af', cat:'res', markers:[
+    {lat:28.5,lon:62.5,note:'Metal Mountain (North) — high density cluster'},
+    {lat:30.1,lon:58.2,note:'Mountain ridge near snow biome border'},
+    {lat:32.4,lon:47.8,note:'Volcano area — highest density, very dangerous'},
+    {lat:35.2,lon:45.1,note:'South volcano approach — good Anky spot'},
+    {lat:28.0,lon:70.3,note:'Northeast mountain ridge'},
+    {lat:25.4,lon:73.1,note:'North ridge outcroppings'},
+    {lat:67.5,lon:25.3,note:'South mountains — accessible early'},
+    {lat:70.2,lon:28.1,note:'SW highlands metal cluster'},
+    {lat:48.5,lon:41.2,note:'Central highlands — moderate density'},
+    {lat:40.1,lon:35.6,note:'West-central hills'},
+    {lat:55.3,lon:19.2,note:'Western mountain face'},
+  ]},
+  { id:'crystal', label:'Crystal', color:'#67e8f9', cat:'res', markers:[
+    {lat:33.1,lon:49.2,note:'Volcano peak — crystal clusters alongside obsidian'},
+    {lat:30.8,lon:55.4,note:'Mountain ridge — good early crystal access'},
+    {lat:28.0,lon:62.0,note:'North mountain — crystal and metal together'},
+    {lat:25.1,lon:69.4,note:'North ridge crystal'},
+    {lat:23.5,lon:67.5,note:'Snow biome approach — crystal rich'},
+    {lat:48.0,lon:42.5,note:'Central highlands crystal nodes'},
+    {lat:68.0,lon:24.5,note:'South mountain crystal'},
+  ]},
+  { id:'obsidian', label:'Obsidian', color:'#a78bfa', cat:'res', markers:[
+    {lat:32.5,lon:47.5,note:'Volcano — primary obsidian source on The Island'},
+    {lat:31.2,lon:49.8,note:'Volcano upper slopes'},
+    {lat:34.0,lon:45.6,note:'Volcano south face'},
+    {lat:29.5,lon:52.1,note:'Volcano northeast'},
+  ]},
+  { id:'oil_surface', label:'Oil (Surface)', color:'#92400e', cat:'res', markers:[
+    {lat:19.5,lon:63.8,note:'Snow biome oil rocks — north cluster'},
+    {lat:22.0,lon:66.5,note:'Snow biome oil rocks'},
+    {lat:25.0,lon:71.2,note:'Snow biome oil — east cluster'},
+    {lat:17.8,lon:59.3,note:'Snow biome oil — west edge'},
+  ]},
+  { id:'oil_water', label:'Oil (Underwater)', color:'#b45309', cat:'res', markers:[
+    {lat:5.0,lon:50.0,note:'North ocean floor — oil nodes'},
+    {lat:10.0,lon:85.0,note:'NE ocean — oil deposits'},
+    {lat:50.0,lon:5.0,note:'West ocean — oil nodes'},
+    {lat:85.0,lon:15.0,note:'SW ocean — oil deposits'},
+    {lat:50.0,lon:95.0,note:'East ocean — oil nodes'},
+  ]},
+  { id:'pearls', label:'Silica Pearls', color:'#fbcfe8', cat:'res', markers:[
+    {lat:12.5,lon:87.0,note:'NE shallows — easiest early pearls access'},
+    {lat:15.0,lon:90.0,note:'NE bay shallows'},
+    {lat:8.0,lon:85.0,note:'North coast shallows'},
+    {lat:18.0,lon:92.5,note:'East coast shallows'},
+    {lat:5.0,lon:30.0,note:'North deep — high density'},
+    {lat:90.0,lon:50.0,note:'South deep ocean pearls'},
+  ]},
+  { id:'rare_flowers', label:'Rare Flowers', color:'#f472b6', cat:'res', markers:[
+    {lat:62.5,lon:35.5,note:'Swamp — primary rare flowers location'},
+    {lat:65.0,lon:39.0,note:'Swamp southeast'},
+    {lat:58.0,lon:33.0,note:'Swamp northwest edge'},
+    {lat:30.0,lon:50.0,note:'High mountain tundra flowers'},
+    {lat:28.0,lon:63.0,note:'Mountain snowline flowers'},
+    {lat:48.5,lon:44.0,note:'Redwood / highland border'},
+  ]},
+  { id:'rare_mush', label:'Rare Mushrooms', color:'#c084fc', cat:'res', markers:[
+    {lat:63.0,lon:38.0,note:'Swamp — rare mushrooms abundant'},
+    {lat:60.5,lon:35.5,note:'Swamp edge'},
+    {lat:50.0,lon:45.5,note:'Redwood floor — mushrooms and rare mushrooms'},
+    {lat:52.0,lon:48.0,note:'Redwood interior'},
+  ]},
+  { id:'beaver', label:'Beaver Dams', color:'#78350f', cat:'res', markers:[
+    {lat:43.5,lon:51.5,note:'Central river — beaver dams spawn here. Cementing paste source.'},
+    {lat:45.0,lon:56.0,note:'River north fork'},
+    {lat:40.2,lon:49.8,note:'River upper section'},
+    {lat:50.5,lon:53.0,note:'Central river south fork'},
+    {lat:38.5,lon:63.0,note:'NE river tributaries'},
+    {lat:35.0,lon:66.0,note:'Northern river — multiple dams'},
+  ]},
+  { id:'beehive', label:'Bee Hives', color:'#fbbf24', cat:'res', markers:[
+    {lat:49.0,lon:44.5,note:'Redwood — bee hives in giant trees. Bring rare flowers to tame.'},
+    {lat:51.0,lon:46.5,note:'Redwood interior hives'},
+    {lat:53.5,lon:48.5,note:'South Redwood hives'},
+    {lat:47.5,lon:42.0,note:'North Redwood hives'},
+  ]},
+  { id:'plant_x', label:'Plant Species X', color:'#4ade80', cat:'res', markers:[
+    {lat:65.0,lon:38.0,note:'Swamp — Plant X seeds. Harvest carefully — wild plants shoot.'},
+    {lat:63.5,lon:35.5,note:'Swamp interior'},
+    {lat:68.0,lon:42.0,note:'Swamp south'},
+  ]},
+  { id:'organic_poly', label:'Organic Polymer', color:'#bfdbfe', cat:'res', markers:[
+    {lat:20.0,lon:62.5,note:'Snow biome — Kairuku penguins drop Organic Polymer when killed'},
+    {lat:18.5,lon:65.5,note:'Snow biome — Kairuku clusters'},
+    {lat:22.5,lon:60.0,note:'Snow biome west Kairuku'},
+  ]},
+];
+
+// ── Explorer Notes — ASA The Island
+// Source: gameskinny.com ASA guide (March 2024) — ASA-specific coordinates
+// Note: Some notes deep in caves have cave entrance coords in the cave entry instead
+const NOTES = [
+  // Helena Walker (#34d399 green)
+  {id:'h1', lbl:'Helena #1', auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:1.59, lon:97.85, note:'⚠ In Underwater Cave (NE) — swim-only access'},
+  {id:'h2', lbl:'Helena #2', auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:98.81, lon:74.84, note:'⚠ In Underwater Cave (South)'},
+  {id:'h3', lbl:'Helena #3', auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:97.87, lon:33.92, note:'⚠ Underwater Cave (SW)'},
+  {id:'h4', lbl:'Helena #4', auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:97.42, lon:6.96, note:'⚠ Underwater Cave (West)'},
+  {id:'h5', lbl:'Helena #5', auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:86.81, lon:43.79, note:''},
+  {id:'h6', lbl:'Helena #6', auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:81.80, lon:80.82, note:''},
+  {id:'h7', lbl:'Helena #7', auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:83.54, lon:23.99, note:''},
+  {id:'h8', lbl:'Helena #8', auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:63.04, lon:86.75, note:''},
+  {id:'h9', lbl:'Helena #9', auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:49.24, lon:84.09, note:'Inside Caverns of Lost Hope'},
+  {id:'h10',lbl:'Helena #10',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:52.80, lon:60.48, note:''},
+  {id:'h11',lbl:'Helena #11',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:73.04, lon:63.24, note:'Inside Upper South Cave'},
+  {id:'h12',lbl:'Helena #12',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:89.72, lon:52.48, note:'Inside Lower South Cave'},
+  {id:'h13',lbl:'Helena #13',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:56.13, lon:23.93, note:''},
+  {id:'h14',lbl:'Helena #14',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:22.40, lon:65.00, note:''},
+  {id:'h15',lbl:'Helena #15',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:31.39, lon:57.11, note:''},
+  {id:'h16',lbl:'Helena #16',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:39.19, lon:22.08, note:''},
+  {id:'h17',lbl:'Helena #17',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:81.26, lon:81.86, note:''},
+  {id:'h18',lbl:'Helena #18',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:81.11, lon:74.12, note:''},
+  {id:'h19',lbl:'Helena #19',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:21.01, lon:43.74, note:''},
+  {id:'h20',lbl:'Helena #20',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:14.02, lon:49.88, note:''},
+  {id:'h21',lbl:'Helena #21',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:6.42,  lon:49.20, note:''},
+  {id:'h22',lbl:'Helena #22',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:20.71, lon:62.71, note:''},
+  {id:'h23',lbl:'Helena #23',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:19.54, lon:67.88, note:''},
+  {id:'h24',lbl:'Helena #24',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:25.50, lon:18.64, note:''},
+  {id:'h25',lbl:'Helena #25',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:33.94, lon:17.88, note:''},
+  {id:'h26',lbl:'Helena #26',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:23.93, lon:57.51, note:''},
+  {id:'h27',lbl:'Helena #27',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:21.98, lon:21.58, note:''},
+  {id:'h28',lbl:'Helena #28',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:17.69, lon:19.98, note:''},
+  {id:'h29',lbl:'Helena #29',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:10.69, lon:86.39, note:''},
+  {id:'h30',lbl:'Helena #30',auth:'Helena Walker', cat:'note_h', col:'#34d399', lat:14.08, lon:81.65, note:''},
+  // Nerva (#f87171 red)
+  {id:'n1', lbl:'Nerva #1', auth:'Nerva', cat:'note_n', col:'#f87171', lat:17.77, lon:71.50, note:''},
+  {id:'n2', lbl:'Nerva #2', auth:'Nerva', cat:'note_n', col:'#f87171', lat:33.30, lon:82.78, note:''},
+  {id:'n3', lbl:'Nerva #3', auth:'Nerva', cat:'note_n', col:'#f87171', lat:37.77, lon:20.23, note:''},
+  {id:'n4', lbl:'Nerva #4', auth:'Nerva', cat:'note_n', col:'#f87171', lat:39.67, lon:71.00, note:''},
+  {id:'n5', lbl:'Nerva #5', auth:'Nerva', cat:'note_n', col:'#f87171', lat:44.57, lon:28.38, note:''},
+  {id:'n6', lbl:'Nerva #6', auth:'Nerva', cat:'note_n', col:'#f87171', lat:49.27, lon:83.85, note:'Inside Caverns of Lost Hope'},
+  {id:'n7', lbl:'Nerva #7', auth:'Nerva', cat:'note_n', col:'#f87171', lat:47.44, lon:62.70, note:''},
+  {id:'n8', lbl:'Nerva #8', auth:'Nerva', cat:'note_n', col:'#f87171', lat:52.87, lon:48.92, note:''},
+  {id:'n9', lbl:'Nerva #9', auth:'Nerva', cat:'note_n', col:'#f87171', lat:59.57, lon:14.64, note:'Inside Caverns of Lost Faith'},
+  {id:'n10',lbl:'Nerva #10',auth:'Nerva', cat:'note_n', col:'#f87171', lat:51.59, lon:55.40, note:''},
+  {id:'n11',lbl:'Nerva #11',auth:'Nerva', cat:'note_n', col:'#f87171', lat:88.12, lon:23.26, note:''},
+  {id:'n12',lbl:'Nerva #12',auth:'Nerva', cat:'note_n', col:'#f87171', lat:81.99, lon:10.75, note:''},
+  {id:'n13',lbl:'Nerva #13',auth:'Nerva', cat:'note_n', col:'#f87171', lat:72.87, lon:90.32, note:''},
+  {id:'n14',lbl:'Nerva #14',auth:'Nerva', cat:'note_n', col:'#f87171', lat:76.03, lon:60.75, note:''},
+  {id:'n15',lbl:'Nerva #15',auth:'Nerva', cat:'note_n', col:'#f87171', lat:64.13, lon:15.44, note:''},
+  {id:'n16',lbl:'Nerva #16',auth:'Nerva', cat:'note_n', col:'#f87171', lat:54.36, lon:82.53, note:''},
+  {id:'n17',lbl:'Nerva #17',auth:'Nerva', cat:'note_n', col:'#f87171', lat:42.25, lon:72.48, note:''},
+  {id:'n18',lbl:'Nerva #18',auth:'Nerva', cat:'note_n', col:'#f87171', lat:59.17, lon:29.23, note:''},
+  {id:'n19',lbl:'Nerva #19',auth:'Nerva', cat:'note_n', col:'#f87171', lat:42.36, lon:27.78, note:''},
+  {id:'n20',lbl:'Nerva #20',auth:'Nerva', cat:'note_n', col:'#f87171', lat:50.70, lon:36.61, note:''},
+  {id:'n21',lbl:'Nerva #21',auth:'Nerva', cat:'note_n', col:'#f87171', lat:55.87, lon:74.95, note:''},
+  {id:'n22',lbl:'Nerva #22',auth:'Nerva', cat:'note_n', col:'#f87171', lat:42.32, lon:62.65, note:''},
+  {id:'n23',lbl:'Nerva #23',auth:'Nerva', cat:'note_n', col:'#f87171', lat:44.59, lon:71.47, note:''},
+  {id:'n24',lbl:'Nerva #24',auth:'Nerva', cat:'note_n', col:'#f87171', lat:43.10, lon:81.51, note:''},
+  {id:'n25',lbl:'Nerva #25',auth:'Nerva', cat:'note_n', col:'#f87171', lat:55.55, lon:79.73, note:''},
+  {id:'n26',lbl:'Nerva #26',auth:'Nerva', cat:'note_n', col:'#f87171', lat:77.79, lon:12.24, note:''},
+  {id:'n27',lbl:'Nerva #27',auth:'Nerva', cat:'note_n', col:'#f87171', lat:57.78, lon:51.75, note:''},
+  {id:'n28',lbl:'Nerva #28',auth:'Nerva', cat:'note_n', col:'#f87171', lat:49.53, lon:49.35, note:''},
+  {id:'n29',lbl:'Nerva #29',auth:'Nerva', cat:'note_n', col:'#f87171', lat:74.72, lon:59.30, note:''},
+  {id:'n30',lbl:'Nerva #30',auth:'Nerva', cat:'note_n', col:'#f87171', lat:41.83, lon:37.41, note:''},
+  // Rockwell (#60a5fa blue)
+  {id:'r1', lbl:'Rockwell #1', auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:21.18, lon:76.99, note:''},
+  {id:'r2', lbl:'Rockwell #2', auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:88.77, lon:20.56, note:''},
+  {id:'r3', lbl:'Rockwell #3', auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:55.64, lon:7.77,  note:''},
+  {id:'r4', lbl:'Rockwell #4', auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:8.11,  lon:91.90, note:''},
+  {id:'r5', lbl:'Rockwell #5', auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:16.49, lon:72.36, note:''},
+  {id:'r6', lbl:'Rockwell #6', auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:46.40, lon:83.70, note:'Inside Caverns of Lost Hope'},
+  {id:'r7', lbl:'Rockwell #7', auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:43.12, lon:86.59, note:''},
+  {id:'r8', lbl:'Rockwell #8', auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:66.90, lon:31.47, note:''},
+  {id:'r9', lbl:'Rockwell #9', auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:63.60, lon:10.44, note:'Inside Caverns of Lost Faith'},
+  {id:'r10',lbl:'Rockwell #10',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:79.92, lon:75.08, note:''},
+  {id:'r11',lbl:'Rockwell #11',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:85.01, lon:69.95, note:''},
+  {id:'r12',lbl:'Rockwell #12',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:88.03, lon:51.52, note:''},
+  {id:'r13',lbl:'Rockwell #13',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:66.47, lon:63.49, note:''},
+  {id:'r14',lbl:'Rockwell #14',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:60.00, lon:48.80, note:''},
+  {id:'r15',lbl:'Rockwell #15',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:73.50, lon:28.96, note:''},
+  {id:'r16',lbl:'Rockwell #16',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:72.72, lon:20.61, note:''},
+  {id:'r17',lbl:'Rockwell #17',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:39.28, lon:47.30, note:'Inside Central Cave'},
+  {id:'r18',lbl:'Rockwell #18',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:71.80, lon:92.10, note:'Inside Lava Cave'},
+  {id:'r19',lbl:'Rockwell #19',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:89.44, lon:24.04, note:''},
+  {id:'r20',lbl:'Rockwell #20',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:92.51, lon:22.85, note:''},
+  {id:'r21',lbl:'Rockwell #21',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:81.62, lon:28.57, note:''},
+  {id:'r22',lbl:'Rockwell #22',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:80.29, lon:46.11, note:''},
+  {id:'r23',lbl:'Rockwell #23',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:79.72, lon:78.01, note:''},
+  {id:'r24',lbl:'Rockwell #24',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:80.87, lon:71.12, note:''},
+  {id:'r25',lbl:'Rockwell #25',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:79.11, lon:68.19, note:''},
+  {id:'r26',lbl:'Rockwell #26',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:80.06, lon:79.76, note:''},
+  {id:'r27',lbl:'Rockwell #27',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:15.09, lon:91.84, note:''},
+  {id:'r28',lbl:'Rockwell #28',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:83.03, lon:46.79, note:''},
+  {id:'r29',lbl:'Rockwell #29',auth:'Rockwell', cat:'note_r', col:'#60a5fa', lat:8.22,  lon:79.90, note:''},
+  // Mei-Yin (#fb923c orange)
+  {id:'m1', lbl:'Mei-Yin #1', auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:20.84, lon:13.68, note:''},
+  {id:'m2', lbl:'Mei-Yin #2', auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:10.43, lon:15.81, note:''},
+  {id:'m3', lbl:'Mei-Yin #3', auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:10.05, lon:52.92, note:''},
+  {id:'m4', lbl:'Mei-Yin #4', auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:14.79, lon:26.75, note:''},
+  {id:'m5', lbl:'Mei-Yin #5', auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:22.73, lon:10.81, note:''},
+  {id:'m6', lbl:'Mei-Yin #6', auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:11.26, lon:25.70, note:''},
+  {id:'m7', lbl:'Mei-Yin #7', auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:16.54, lon:26.63, note:''},
+  {id:'m8', lbl:'Mei-Yin #8', auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:29.54, lon:10.20, note:''},
+  {id:'m9', lbl:'Mei-Yin #9', auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:46.79, lon:86.82, note:'Inside Caverns of Lost Hope'},
+  {id:'m10',lbl:'Mei-Yin #10',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:23.50, lon:42.91, note:''},
+  {id:'m11',lbl:'Mei-Yin #11',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:15.53, lon:39.24, note:''},
+  {id:'m12',lbl:'Mei-Yin #12',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:6.62,  lon:55.71, note:''},
+  {id:'m13',lbl:'Mei-Yin #13',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:16.55, lon:39.42, note:''},
+  {id:'m14',lbl:'Mei-Yin #14',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:9.52,  lon:53.72, note:''},
+  {id:'m15',lbl:'Mei-Yin #15',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:22.95, lon:37.99, note:''},
+  {id:'m16',lbl:'Mei-Yin #16',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:31.77, lon:25.89, note:''},
+  {id:'m17',lbl:'Mei-Yin #17',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:24.38, lon:31.26, note:''},
+  {id:'m18',lbl:'Mei-Yin #18',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:22.65, lon:51.94, note:''},
+  {id:'m19',lbl:'Mei-Yin #19',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:37.12, lon:43.12, note:''},
+  {id:'m20',lbl:'Mei-Yin #20',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:37.29, lon:74.63, note:''},
+  {id:'m21',lbl:'Mei-Yin #21',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:30.90, lon:73.21, note:''},
+  {id:'m22',lbl:'Mei-Yin #22',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:26.83, lon:87.75, note:''},
+  {id:'m23',lbl:'Mei-Yin #23',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:38.59, lon:83.57, note:''},
+  {id:'m24',lbl:'Mei-Yin #24',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:50.53, lon:19.99, note:''},
+  {id:'m25',lbl:'Mei-Yin #25',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:41.32, lon:18.51, note:''},
+  {id:'m26',lbl:'Mei-Yin #26',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:53.03, lon:12.03, note:''},
+  {id:'m27',lbl:'Mei-Yin #27',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:17.94, lon:2.65,  note:''},
+  {id:'m28',lbl:'Mei-Yin #28',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:19.04, lon:35.75, note:''},
+  {id:'m29',lbl:'Mei-Yin #29',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:12.91, lon:35.97, note:''},
+  {id:'m30',lbl:'Mei-Yin #30',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:38.26, lon:39.01, note:''},
+  {id:'m31',lbl:'Mei-Yin #31',auth:'Mei-Yin Li', cat:'note_m', col:'#fb923c', lat:7.20,  lon:77.83, note:''},
+  // Unknown (#a78bfa purple)
+  {id:'u1', lbl:'??? #1', auth:'Unknown', cat:'note_u', col:'#a78bfa', lat:19.26, lon:82.95, note:'Inside Overseer Arena'},
+  {id:'u4', lbl:'??? #4', auth:'Unknown', cat:'note_u', col:'#a78bfa', lat:34.24, lon:84.44, note:''},
+  {id:'u7', lbl:'??? #7', auth:'Unknown', cat:'note_u', col:'#a78bfa', lat:79.97, lon:62.12, note:''},
+  {id:'u10',lbl:'??? #10',auth:'Unknown', cat:'note_u', col:'#a78bfa', lat:43.34, lon:19.18, note:''},
+  {id:'u13',lbl:'??? #13',auth:'Unknown', cat:'note_u', col:'#a78bfa', lat:95.75, lon:20.15, note:''},
+];
+
+// ── Caves — ASA The Island
+// Entrance coordinates. Note: ASA cave positions verified against community reports.
+// Items marked ⚠ — coordinates are community-reported for ASA but confirm before committing a long route.
+const CAVES = [
+  {id:'c_ls',  lbl:'Lower South Cave',      col:'#dc2626', lat:81.5, lon:53.5, note:'Artifact of the Brute. Entrance on south beach. Relatively accessible — good first cave.'},
+  {id:'c_us',  lbl:'Upper South Cave',      col:'#dc2626', lat:67.4, lon:80.3, note:'Artifact of the Pack. Entrance on SE coast cliffs.'},
+  {id:'c_cc',  lbl:'Central Cave',          col:'#dc2626', lat:46.4, lon:49.6, note:'Artifact of the Clever. Underground entrance in central highlands. Bring mid-tier gear.'},
+  {id:'c_nw',  lbl:'North West Cave',       col:'#dc2626', lat:19.3, lon:19.0, note:'Artifact of the Skylord. NW mountain entrance. Argentavis recommended to reach.'},
+  {id:'c_ft',  lbl:'Frozen Tooth (Ice Cave)',col:'#dc2626',lat:28.2, lon:68.2, note:'Artifact of the Strong. Snow biome — cold protection required.'},
+  {id:'c_sw',  lbl:'Swamp Cave',            col:'#dc2626', lat:62.8, lon:37.2, note:'Artifact of the Immune. Swamp region — bring full hazard gear. Leeches and disease inside.'},
+  {id:'c_lh',  lbl:'Caverns of Lost Hope',  col:'#dc2626', lat:46.0, lon:88.3, note:'Artifact of the Massive. East coast sea cave entrance.'},
+  {id:'c_lf',  lbl:'Caverns of Lost Faith', col:'#dc2626', lat:59.5, lon:14.6, note:'Artifact of the Devourer. West coast sea cave entrance.'},
+  {id:'c_lava',lbl:'Lava Cave',             col:'#dc2626', lat:73.1, lon:91.7, note:'Artifact of the Hunter. SE corner — fire resistance recommended.'},
+  {id:'c_une', lbl:'Underwater Cave (NE)',  col:'#7f1d1d', lat:8.4,  lon:90.8, note:'⚠ Swim-only access. SCUBA or water tame required. Helena notes #1 inside.'},
+  {id:'c_uns', lbl:'Underwater Cave (South)',col:'#7f1d1d',lat:91.8, lon:71.2, note:'⚠ Swim-only access. Helena note #2 inside.'},
+  {id:'c_tek', lbl:'Tek Cave',              col:'#b91c1c', lat:48.6, lon:41.7, note:'Final endgame cave. Requires all 3 boss trophies (Broodmother, Megapithecus, Dragon). Leads to Ascension.'},
+];
+
+// ── Artifacts — ASA The Island
+const ARTIFACTS = [
+  {id:'a_brute',   lbl:'Artifact of the Brute',   col:'#fbbf24', lat:81.5, lon:53.5, note:'Lower South Cave — Broodmother Lysrix boss tribute (×10)'},
+  {id:'a_pack',    lbl:'Artifact of the Pack',    col:'#fbbf24', lat:67.4, lon:80.3, note:'Upper South Cave — Broodmother Lysrix boss tribute (×10)'},
+  {id:'a_clever',  lbl:'Artifact of the Clever',  col:'#fbbf24', lat:46.4, lon:49.6, note:'Central Cave — Megapithecus boss tribute (×10)'},
+  {id:'a_skylord', lbl:'Artifact of the Skylord', col:'#fbbf24', lat:19.3, lon:19.0, note:'North West Cave — Megapithecus boss tribute (×10)'},
+  {id:'a_strong',  lbl:'Artifact of the Strong',  col:'#fbbf24', lat:28.2, lon:68.2, note:'Frozen Tooth — Megapithecus boss tribute (×10)'},
+  {id:'a_immune',  lbl:'Artifact of the Immune',  col:'#fbbf24', lat:62.8, lon:37.2, note:'Swamp Cave — Dragon boss tribute (×10)'},
+  {id:'a_massive', lbl:'Artifact of the Massive', col:'#fbbf24', lat:46.0, lon:88.3, note:'Caverns of Lost Hope — Dragon boss tribute (×10)'},
+  {id:'a_dev',     lbl:'Artifact of the Devourer',col:'#fbbf24', lat:59.5, lon:14.6, note:'Caverns of Lost Faith — Dragon boss tribute (×10)'},
+  {id:'a_hunter',  lbl:'Artifact of the Hunter',  col:'#fbbf24', lat:73.1, lon:91.7, note:'Lava Cave — Dragon boss tribute (×10)'},
+  {id:'a_crag',    lbl:'Artifact of the Crag',    col:'#fbbf24', lat:28.2, lon:68.2, note:'⚠ Verify exact location in-game — community coordinates vary'},
+];
+
+// ── Terminals (Obelisks) — ASA The Island
+const TERMINALS = [
+  {id:'t_red',  lbl:'Red Obelisk',   col:'#ef4444', lat:72.5, lon:50.0, note:'South obelisk — upload/download creatures, items, characters. Boss tribute terminal.'},
+  {id:'t_blue', lbl:'Blue Obelisk',  col:'#60a5fa', lat:40.4, lon:85.0, note:'East obelisk — boss tribute terminal.'},
+  {id:'t_green',lbl:'Green Obelisk', col:'#22c55e', lat:30.5, lon:31.0, note:'West obelisk — boss tribute terminal.'},
+];
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let map, layerGroups = {}, layerVis = {}, customPins = [], customGroup;
+let pinMode = false, pendingCoord = null, pickColor = '#f97316';
+let cfg = { tok:'', gist:'', name:'Survivor', trackerUrl:'', trackerInterval:10 };
+
+function initMap() {
+  map = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom: -2, maxZoom: 8,   // 8 = allows close zoom into a small camp area
+    zoomSnap: 0.25, zoomDelta: 0.5,
+    attributionControl: false,
+  });
+
+  // Map image: The Island — ASA
+  // For crisp zoom at high levels, host a high-res image (4096px+) locally:
+  //   1. Download: https://ark.wiki.gg/images/7/7d/The_Island_Topographic_Map.jpg
+  //      (or a higher-res version from the wiki's full-res link)
+  //   2. Place it next to this HTML file as: map_the_island.jpg
+  //   3. Change imgUrl below to: './map_the_island.jpg'
+  //
+  // The higher the source image resolution, the crisper the deep zoom.
+  const bounds = [[100, 0], [0, 100]];
+  const imgUrl = './map_the_island.jpg';    // LOCAL FILE — best quality, no hotlink issues
+  const imgFallback = 'https://ark.wiki.gg/images/7/7d/The_Island_Topographic_Map.jpg';
+
+  // Try local first; fall back to wiki CDN if not found
+  const imgOverlay = L.imageOverlay(imgUrl, bounds, {
+    opacity: 1,
+    className: 'map-img-layer',
+  }).addTo(map);
+
+  imgOverlay.on('error', () => {
+    // Local file not found — try wiki CDN
+    L.imageOverlay(imgFallback, bounds, { opacity:1, className:'map-img-layer' }).addTo(map);
+    setStatus('⚠ Local map image not found — using wiki CDN (may be slow or blocked)');
+  });
+
+  map.fitBounds(bounds);
+
+  // Create all layer groups (hidden by default)
+  const cats = [
+    ...RESOURCES.map(r=>r.id),
+    'note_h','note_n','note_r','note_m','note_u',
+    'cave','artifact','terminal','custom'
+  ];
+  cats.forEach(c => {
+    layerGroups[c] = L.layerGroup();
+    layerVis[c] = false;
+  });
+  customGroup = layerGroups['custom'];
+
+  // Coord tracker
+  map.on('mousemove', e => {
+    const lat = (100 - e.latlng.lat).toFixed(2);
+    const lon = e.latlng.lng.toFixed(2);
+    document.getElementById('coord-disp').textContent = `LAT ${lat} · LON ${lon}`;
+  });
+
+  // Click to place pin
+  map.on('click', e => {
+    if (!pinMode) return;
+    const lat = parseFloat((100 - e.latlng.lat).toFixed(2));
+    const lon = parseFloat(e.latlng.lng.toFixed(2));
+    pendingCoord = {lat, lon};
+    document.getElementById('new-pin-coords').textContent = `LAT ${lat} · LON ${lon}`;
+    openOv('ov-pin');
+  });
+
+  // Place all data markers
+  placeResources();
+  placeNotes();
+  placeCaves();
+  placeArtifacts();
+  placeTerminals();
+
+  // Init live player tracking layer (always-on layer group)
+  initTracking();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COORDINATE CONVERSION
+// ═══════════════════════════════════════════════════════════
+function a2l(lat, lon){ return [100 - lat, lon]; } // ARK → Leaflet
+
+// ═══════════════════════════════════════════════════════════
+//  ICON FACTORIES
+// ═══════════════════════════════════════════════════════════
+function dotIcon(col, sz=9){
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:${sz}px;height:${sz}px;background:${col};border:1.5px solid rgba(255,255,255,.35);border-radius:50%;box-shadow:0 0 5px ${col}88;cursor:pointer"></div>`,
+    iconSize:[sz,sz], iconAnchor:[sz/2,sz/2]
+  });
+}
+function diamondIcon(col){
+  const s=8;
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:${s}px;height:${s}px;background:${col};border:1.5px solid rgba(255,255,255,.4);transform:rotate(45deg);box-shadow:0 0 4px ${col}88;cursor:pointer"></div>`,
+    iconSize:[s,s], iconAnchor:[s/2,s/2]
+  });
+}
+function squareIcon(col, sz=13){
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:${sz}px;height:${sz}px;background:${col};border:2px solid rgba(255,255,255,.5);border-radius:2px;box-shadow:0 0 7px ${col}cc;cursor:pointer"></div>`,
+    iconSize:[sz,sz], iconAnchor:[sz/2,sz/2]
+  });
+}
+function pinIcon(col){
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:16px solid ${col};filter:drop-shadow(0 0 3px ${col}99);cursor:pointer"></div>`,
+    iconSize:[14,16], iconAnchor:[7,16]
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  POPUP HTML
+// ═══════════════════════════════════════════════════════════
+function popup(d){
+  const verifyTag = (d.note||'').startsWith('⚠') ? `<div class="pop-verify">⚠ Verify in ASA before committing</div>` : '';
+  const srcTag = d.isCustom
+    ? `<span class="pop-src" style="color:#f97316">Custom — ${d.addedBy||'?'} · ${d.addedAt?d.addedAt.split('T')[0]:''}</span>`
+    : `<span class="pop-src">ASA Data</span>`;
+  const noteHtml = d.note ? `<div class="pop-note">${d.note}</div>` : '';
+  const delBtn = d.isCustom ? `<br><button class="pop-del" onclick="delPin('${d.id}')">Remove Pin</button>` : '';
+  return `<div class="pop">
+    <div class="pop-cat">${d.cat||''}</div>
+    <div class="pop-name">${d.lbl}</div>
+    <div class="pop-coords">LAT ${d.lat.toFixed(2)} · LON ${d.lon.toFixed(2)}</div>
+    ${srcTag}${verifyTag}${noteHtml}${delBtn}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PLACE MARKERS
+// ═══════════════════════════════════════════════════════════
+function placeResources(){
+  RESOURCES.forEach(res => {
+    const grp = layerGroups[res.id];
+    res.markers.forEach(m => {
+      L.marker(a2l(m.lat,m.lon),{icon:dotIcon(res.color,9)})
+        .bindPopup(popup({lbl:res.label,cat:'Resource',lat:m.lat,lon:m.lon,note:m.note,isCustom:false}),{maxWidth:290})
+        .addTo(grp);
+    });
+    // don't add grp to map yet — hidden by default
+  });
+}
+
+function placeNotes(){
+  const catMap = {note_h:'note_h',note_n:'note_n',note_r:'note_r',note_m:'note_m',note_u:'note_u'};
+  NOTES.forEach(n => {
+    const grp = layerGroups[n.cat];
+    if(!grp)return;
+    L.marker(a2l(n.lat,n.lon),{icon:diamondIcon(n.col)})
+      .bindPopup(popup({lbl:n.lbl,cat:`Explorer Note — ${n.auth}`,lat:n.lat,lon:n.lon,note:n.note,isCustom:false}),{maxWidth:290})
+      .addTo(grp);
+  });
+}
+
+function placeCaves(){
+  const grp = layerGroups['cave'];
+  CAVES.forEach(c => {
+    L.marker(a2l(c.lat,c.lon),{icon:squareIcon(c.col,13)})
+      .bindPopup(popup({lbl:c.lbl,cat:'Cave Entrance',lat:c.lat,lon:c.lon,note:c.note,isCustom:false}),{maxWidth:290})
+      .addTo(grp);
+  });
+}
+
+function placeArtifacts(){
+  const grp = layerGroups['artifact'];
+  ARTIFACTS.forEach(a => {
+    L.marker(a2l(a.lat,a.lon),{icon:dotIcon(a.col,13)})
+      .bindPopup(popup({lbl:a.lbl,cat:'Artifact',lat:a.lat,lon:a.lon,note:a.note,isCustom:false}),{maxWidth:290})
+      .addTo(grp);
+  });
+}
+
+function placeTerminals(){
+  const grp = layerGroups['terminal'];
+  TERMINALS.forEach(t => {
+    L.marker(a2l(t.lat,t.lon),{icon:squareIcon(t.col,15)})
+      .bindPopup(popup({lbl:t.lbl,cat:'Terminal / Obelisk',lat:t.lat,lon:t.lon,note:t.note,isCustom:false}),{maxWidth:290})
+      .addTo(grp);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SIDEBAR CONSTRUCTION
+// ═══════════════════════════════════════════════════════════
+function buildSidebar(){
+  // Resources
+  const rl = document.getElementById('res-list');
+  RESOURCES.forEach(r => rl.appendChild(mkItem(r.id,'res',r.label,r.color,r.markers.length)));
+
+  // Notes
+  const nl = document.getElementById('note-list');
+  [
+    {id:'note_h',lbl:'Helena Walker',col:'#34d399',ct:30},
+    {id:'note_n',lbl:'Gaius Nerva',  col:'#f87171',ct:30},
+    {id:'note_r',lbl:'Sir Rockwell', col:'#60a5fa',ct:29},
+    {id:'note_m',lbl:'Mei-Yin Li',   col:'#fb923c',ct:31},
+    {id:'note_u',lbl:'??? (Unknown)',col:'#a78bfa',ct:5},
+  ].forEach(g => nl.appendChild(mkItem(g.id,'note',g.lbl,g.col,g.ct)));
+
+  // Caves
+  const cl = document.getElementById('cave-list');
+  cl.appendChild(mkItem('cave','cave','All Caves','#dc2626',CAVES.length));
+
+  // Artifacts
+  const al = document.getElementById('art-list');
+  al.appendChild(mkItem('artifact','artifact','All Artifacts','#fbbf24',ARTIFACTS.length));
+
+  // Terminals
+  const tl = document.getElementById('term-list');
+  tl.appendChild(mkItem('terminal','terminal','Obelisks / Terminals','#e2e8f0',TERMINALS.length));
+}
+
+function mkItem(id, type, lbl, col, ct){
+  const d = document.createElement('div');
+  d.className='lay-item';
+  d.dataset.id=id;
+  d.dataset.type=type;
+  d.onclick=()=>toggleLayer(id,type);
+  d.innerHTML=`
+    <div class="chk" id="chk-${id}" style="border-color:${col};color:${col}"></div>
+    <div class="cdot" style="background:${col}"></div>
+    <span class="lay-lbl">${lbl}</span>
+    <span class="lay-ct">${ct}</span>`;
+  layerVis[id]=false;
+  return d;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LAYER TOGGLING
+// ═══════════════════════════════════════════════════════════
+function toggleLayer(id, type){
+  const on = !layerVis[id];
+  layerVis[id] = on;
+  const chk = document.getElementById(`chk-${id}`);
+  if(chk) chk.classList.toggle('on', on);
+  const grp = layerGroups[id];
+  if(grp){ on ? map.addLayer(grp) : map.removeLayer(grp); }
+}
+
+function allLayers(type){
+  document.querySelectorAll(`[data-type="${type}"]`).forEach(el=>{
+    const id=el.dataset.id;
+    if(!layerVis[id]) toggleLayer(id,type);
+  });
+}
+function noneLayers(type){
+  document.querySelectorAll(`[data-type="${type}"]`).forEach(el=>{
+    const id=el.dataset.id;
+    if(layerVis[id]) toggleLayer(id,type);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SECTION COLLAPSE
+// ═══════════════════════════════════════════════════════════
+function toggleSec(s){
+  const body=document.getElementById(`body-${s}`);
+  const arr=document.getElementById(`arr-${s}`);
+  body.classList.toggle('hide');
+  arr.classList.toggle('up');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CUSTOM PINS
+// ═══════════════════════════════════════════════════════════
+function startPin(){
+  pinMode=true;
+  document.getElementById('map').classList.add('pin-mode');
+  document.getElementById('pin-banner').classList.add('on');
+  document.getElementById('btn-addpin').style.display='none';
+  document.getElementById('btn-cancelpin').style.display='block';
+  setStatus('Click on the map to place pin...');
+}
+function cancelPin(){
+  pinMode=false; pendingCoord=null;
+  document.getElementById('map').classList.remove('pin-mode');
+  document.getElementById('pin-banner').classList.remove('on');
+  document.getElementById('btn-addpin').style.display='block';
+  document.getElementById('btn-cancelpin').style.display='none';
+  closeOv('ov-pin');
+  setStatus('');
+}
+function confirmPin(){
+  if(!pendingCoord) return;
+  const id='pin_'+Date.now();
+  const lbl = document.getElementById('inp-plabel').value.trim()||'Custom Pin';
+  const cat = document.getElementById('inp-pcat').value;
+  const notes = document.getElementById('inp-pnotes').value.trim();
+  const pin = {
+    id, lat:pendingCoord.lat, lon:pendingCoord.lon,
+    lbl, cat, note:notes, col:pickColor,
+    addedBy: cfg.name||'Survivor',
+    addedAt: new Date().toISOString(),
+    isCustom: true,
+  };
+  customPins.push(pin);
+  addPinToMap(pin);
+  updatePinCount();
+  // Auto-show custom layer
+  if(!layerVis['custom']){ layerVis['custom']=true; document.getElementById('chk-custom').classList.add('on'); map.addLayer(customGroup); }
+  closeOv('ov-pin');
+  cancelPin();
+  // Clear form
+  document.getElementById('inp-plabel').value='';
+  document.getElementById('inp-pnotes').value='';
+  toast(`Pin added: ${lbl}`,'ok');
+}
+function addPinToMap(pin){
+  const m = L.marker(a2l(pin.lat,pin.lon),{icon:pinIcon(pin.col)})
+    .bindPopup(popup(pin),{maxWidth:290});
+  m._pid = pin.id;
+  customGroup.addLayer(m);
+}
+function delPin(id){
+  customPins = customPins.filter(p=>p.id!==id);
+  customGroup.eachLayer(l=>{ if(l._pid===id) customGroup.removeLayer(l); });
+  updatePinCount();
+  map.closePopup();
+  toast('Pin removed','ok');
+}
+function updatePinCount(){
+  document.getElementById('ct-custom').textContent = customPins.length;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GITHUB GIST SYNC
+// ═══════════════════════════════════════════════════════════
+async function pull(){
+  if(!cfg.tok||!cfg.gist){ toast('Configure Gist settings first','err'); return; }
+  setStatus('Pulling from Gist...');
+  try{
+    const r = await fetch(`https://api.github.com/gists/${cfg.gist}`,{
+      headers:{'Authorization':`Bearer ${cfg.tok}`,'Accept':'application/vnd.github+json'}
+    });
+    if(!r.ok) throw new Error(`GitHub ${r.status}`);
+    const data = await r.json();
+    const file = data.files['ark_asa_map_data.json'];
+    if(!file) throw new Error('File ark_asa_map_data.json not found in Gist.\nCreate it first with {} as content.');
+    const parsed = JSON.parse(file.content);
+    if(Array.isArray(parsed.custom_markers)){
+      customGroup.clearLayers();
+      customPins = parsed.custom_markers;
+      customPins.forEach(p=>{ p.isCustom=true; addPinToMap(p); });
+      updatePinCount();
+      toast(`Pulled ${customPins.length} pin(s)`,'ok');
+    }
+    setGistStatus('ok'); setStatus('');
+  } catch(e){
+    toast('Pull failed: '+e.message,'err');
+    setGistStatus('err'); setStatus('');
+  }
+}
+
+async function push(){
+  if(!cfg.tok||!cfg.gist){ toast('Configure Gist settings first','err'); return; }
+  setStatus('Pushing to Gist...');
+  try{
+    const body = {
+      version:1, map:'the_island', game:'ark_survival_ascended',
+      lastUpdated:new Date().toISOString(), updatedBy:cfg.name||'Survivor',
+      custom_markers: customPins
+    };
+    const r = await fetch(`https://api.github.com/gists/${cfg.gist}`,{
+      method:'PATCH',
+      headers:{'Authorization':`Bearer ${cfg.tok}`,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
+      body: JSON.stringify({files:{'ark_asa_map_data.json':{content:JSON.stringify(body,null,2)}}})
+    });
+    if(!r.ok) throw new Error(`GitHub ${r.status}`);
+    toast(`Pushed ${customPins.length} pin(s)`,'ok');
+    setGistStatus('ok'); setStatus('');
+  } catch(e){
+    toast('Push failed: '+e.message,'err');
+    setGistStatus('err'); setStatus('');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════════════
+function saveSettings(){
+  cfg.tok             = document.getElementById('inp-tok').value.trim();
+  cfg.gist            = document.getElementById('inp-gist').value.trim();
+  cfg.name            = document.getElementById('inp-name').value.trim()||'Survivor';
+  cfg.trackerUrl      = document.getElementById('inp-tracker-url').value.trim();
+  cfg.trackerInterval = parseInt(document.getElementById('inp-tracker-interval').value,10)||10;
+  sessionStorage.setItem('asa_tok',              cfg.tok);
+  sessionStorage.setItem('asa_gist',             cfg.gist);
+  sessionStorage.setItem('asa_name',             cfg.name);
+  sessionStorage.setItem('asa_tracker_url',      cfg.trackerUrl);
+  sessionStorage.setItem('asa_tracker_interval', cfg.trackerInterval);
+  closeOv('ov-cfg');
+  toast('Settings saved','ok');
+  if(cfg.tok&&cfg.gist){
+    setGistStatus('ok');
+    document.getElementById('gstat').textContent=`Gist: ${cfg.gist.substring(0,10)}…`;
+  }
+}
+function loadCfg(){
+  cfg.tok             = sessionStorage.getItem('asa_tok')||'';
+  cfg.gist            = sessionStorage.getItem('asa_gist')||'';
+  cfg.name            = sessionStorage.getItem('asa_name')||'Survivor';
+  cfg.trackerUrl      = sessionStorage.getItem('asa_tracker_url')||'';
+  cfg.trackerInterval = parseInt(sessionStorage.getItem('asa_tracker_interval'),10)||10;
+  document.getElementById('inp-tok').value              = cfg.tok;
+  document.getElementById('inp-gist').value             = cfg.gist;
+  document.getElementById('inp-name').value             = cfg.name;
+  document.getElementById('inp-tracker-url').value      = cfg.trackerUrl;
+  document.getElementById('inp-tracker-interval').value = cfg.trackerInterval;
+  if(cfg.tok&&cfg.gist){
+    setGistStatus('ok');
+    document.getElementById('gstat').textContent=`Gist: ${cfg.gist.substring(0,10)}…`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════════
+function openOv(id){ document.getElementById(id).classList.add('on'); }
+function closeOv(id){ document.getElementById(id).classList.remove('on'); }
+function setStatus(m){ document.getElementById('stat-msg').textContent=m; }
+function setGistStatus(s){ document.getElementById('gdot').className='gist-dot '+s; }
+
+let toastT;
+function toast(msg, cls=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='show '+cls;
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>el.className='',3200);
+}
+
+function bindEvents(){
+  document.getElementById('btn-cfg').onclick    = ()=>openOv('ov-cfg');
+  document.getElementById('btn-pull').onclick   = pull;
+  document.getElementById('btn-push').onclick   = push;
+  document.getElementById('btn-addpin').onclick = startPin;
+  document.getElementById('btn-cancelpin').onclick = cancelPin;
+  document.getElementById('btn-track-toggle').onclick = toggleTracking;
+
+  // Close overlays on backdrop click
+  document.querySelectorAll('.ov').forEach(ov=>{
+    ov.addEventListener('click', e=>{
+      if(e.target===ov){ ov.classList.remove('on'); if(pinMode) cancelPin(); }
+    });
+  });
+
+  // Colour swatches
+  document.querySelectorAll('.col-swatch').forEach(s=>{
+    s.onclick=()=>{
+      document.querySelectorAll('.col-swatch').forEach(x=>x.classList.remove('picked'));
+      s.classList.add('picked');
+      pickColor = s.dataset.c;
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LIVE PLAYER TRACKING
+//
+//  The map polls a local HTTP endpoint served by a Python
+//  script running on the ARK server machine. That script
+//  connects via RCON (using the Extended RCON plugin +
+//  ASA Server API), calls GetPlayerPos / GetAllActorsPos,
+//  converts raw Unreal Engine coordinates to GPS lat/lon,
+//  and serves the result as JSON on the configured port.
+//
+//  Expected JSON response format:
+//  {
+//    "timestamp": "2026-04-16T18:00:00.000Z",
+//    "players": [
+//      {
+//        "name": "PlayerName",
+//        "lat": 45.52,
+//        "lon": 62.31,
+//        "online": true,
+//        "lastSeen": "2026-04-16T18:00:00.000Z"
+//      }
+//    ]
+//  }
+//
+//  All coordinates are ASA GPS (0–100 lat/lon).
+//  The Python script handles UE→GPS conversion server-side.
+// ═══════════════════════════════════════════════════════════
+
+const PLAYER_COLORS = [
+  '#00c8e8','#22c55e','#f97316','#f472b6',
+  '#a855f7','#fbbf24','#60a5fa','#fb7185',
+  '#34d399','#e879f9','#38bdf8','#a3e635'
+];
+
+let trackingActive   = false;
+let trackingInterval = null;
+let playerLayerGroup;
+let playerMarkers    = {};  // name → { marker, label, color, lastSeen }
+let playerColorMap   = {};  // name → color (persists across polls for visual consistency)
+let colorIdx         = 0;
+
+function initTracking() {
+  playerLayerGroup = L.layerGroup().addTo(map);
+}
+
+function getPlayerColor(name) {
+  if (!playerColorMap[name]) {
+    playerColorMap[name] = PLAYER_COLORS[colorIdx % PLAYER_COLORS.length];
+    colorIdx++;
+  }
+  return playerColorMap[name];
+}
+
+function startTracking() {
+  const url = cfg.trackerUrl || '';
+  if (!url) { toast('Set a Tracker URL in Settings first', 'err'); return; }
+  const ms = Math.max(3000, (cfg.trackerInterval || 10) * 1000);
+  trackingActive = true;
+  setTrackerUI('live');
+  fetchPlayers();
+  trackingInterval = setInterval(fetchPlayers, ms);
+  toast('Live tracking started', 'ok');
+}
+
+function stopTracking() {
+  trackingActive = false;
+  clearInterval(trackingInterval);
+  trackingInterval = null;
+  playerLayerGroup.clearLayers();
+  playerMarkers = {};
+  setTrackerUI('off');
+  renderPlayerList([]);
+  toast('Tracking stopped', '');
+}
+
+function toggleTracking() {
+  if (trackingActive) stopTracking(); else startTracking();
+}
+
+async function fetchPlayers() {
+  if (!trackingActive) return;
+  try {
+    const r = await fetch(cfg.trackerUrl, { cache:'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (!Array.isArray(data.players)) throw new Error('Missing "players" array in response');
+
+    const ts = data.timestamp ? new Date(data.timestamp) : new Date();
+    setLastUpdate(ts.toLocaleTimeString());
+    updatePlayerMarkers(data.players);
+    renderPlayerList(data.players);
+    setTrackerUI('live');
+  } catch(e) {
+    setTrackerUI('err');
+    setLastUpdate('Error: ' + e.message, true);
+  }
+}
+
+function updatePlayerMarkers(players) {
+  const active = new Set(players.map(p => p.name));
+
+  // Add or move markers
+  players.forEach(p => {
+    if (!p.name || p.lat == null || p.lon == null) return;
+    const col = getPlayerColor(p.name);
+    const ll  = a2l(p.lat, p.lon);
+
+    if (playerMarkers[p.name]) {
+      // Move existing
+      playerMarkers[p.name].marker.setLatLng(ll);
+      playerMarkers[p.name].label.setLatLng(ll);
+      playerMarkers[p.name].marker.getPopup()?.setContent(buildPlayerPopup(p, col));
+    } else {
+      // Create marker
+      const m = L.marker(ll, {
+        icon: buildPlayerIcon(col),
+        zIndexOffset: 2000,
+      }).bindPopup(buildPlayerPopup(p, col), { maxWidth: 240 });
+      m._pname = p.name;
+      playerLayerGroup.addLayer(m);
+
+      // Floating name label
+      const lm = L.marker(ll, {
+        icon: L.divIcon({
+          className: '',
+          html: `<div class="player-map-label" style="border-color:${col}50;color:${col}">${p.name}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [-4, 18],
+        }),
+        interactive: false,
+        zIndexOffset: 1999,
+      });
+      playerLayerGroup.addLayer(lm);
+
+      playerMarkers[p.name] = { marker:m, label:lm, color:col };
+    }
+  });
+
+  // Remove players who dropped off
+  Object.keys(playerMarkers).forEach(name => {
+    if (!active.has(name)) {
+      playerLayerGroup.removeLayer(playerMarkers[name].marker);
+      playerLayerGroup.removeLayer(playerMarkers[name].label);
+      delete playerMarkers[name];
+    }
+  });
+
+  // Keep tracker status count fresh
+  const badge = document.getElementById('tracker-badge');
+  if (badge && trackingActive) {
+    badge.textContent = `${Object.keys(playerMarkers).length} LIVE`;
+  }
+}
+
+function buildPlayerIcon(col) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:14px;height:14px;background:${col};
+      border:2px solid rgba(255,255,255,.65);border-radius:50%;
+      box-shadow:0 0 0 3px ${col}44, 0 0 14px ${col}99;
+      animation:livePulse 2s ease-in-out infinite;
+      cursor:pointer;
+    "></div>`,
+    iconSize: [14,14],
+    iconAnchor: [7,7],
+  });
+}
+
+function buildPlayerPopup(p, col) {
+  return `<div class="pop">
+    <div class="pop-cat" style="color:${col};letter-spacing:2px">● LIVE PLAYER</div>
+    <div class="pop-name" style="color:${col}">${p.name}</div>
+    <div class="pop-coords">LAT ${p.lat.toFixed(2)} · LON ${p.lon.toFixed(2)}</div>
+    <div class="pop-src" style="margin-top:3px">Updated: ${new Date().toLocaleTimeString()}</div>
+  </div>`;
+}
+
+function renderPlayerList(players) {
+  const el = document.getElementById('player-list');
+  if (!players || !players.length) {
+    el.innerHTML = `<div class="player-empty">${trackingActive ? 'No players online' : 'Tracking inactive'}</div>`;
+    return;
+  }
+  el.innerHTML = players.map(p => {
+    const col = getPlayerColor(p.name);
+    return `<div class="player-entry">
+      <div class="player-row">
+        <div class="player-blob" style="background:${col}"></div>
+        <span class="player-name">${p.name}</span>
+        <button class="player-goto" title="Fly to on map" onclick="flyToPlayer('${p.name.replace(/'/g,"\\'")}')">⊕</button>
+      </div>
+      <div class="player-coords">LAT ${p.lat.toFixed(2)} · LON ${p.lon.toFixed(2)}</div>
+    </div>`;
+  }).join('');
+}
+
+function flyToPlayer(name) {
+  const pm = playerMarkers[name];
+  if (!pm) { toast('Player not on map', 'err'); return; }
+  map.flyTo(pm.marker.getLatLng(), 2, { duration:0.7 });
+  setTimeout(()=> pm.marker.openPopup(), 750);
+}
+
+function setTrackerUI(state) {
+  const dot   = document.getElementById('tdot');
+  const stat  = document.getElementById('tstat');
+  const badge = document.getElementById('tracker-badge');
+  const btn   = document.getElementById('btn-track-toggle');
+  if (state === 'live') {
+    dot.className   = 'tracker-dot live';
+    stat.textContent = `Tracking · ${Object.keys(playerMarkers).length} online`;
+    badge.textContent = `${Object.keys(playerMarkers).length} LIVE`;
+    badge.className = 'tracker-status-badge live';
+    if (btn) btn.textContent = 'Stop Tracking';
+  } else if (state === 'err') {
+    dot.className   = 'tracker-dot err';
+    stat.textContent = 'Tracker: error';
+    badge.textContent = 'ERR';
+    badge.className = 'tracker-status-badge err';
+  } else {
+    dot.className   = 'tracker-dot';
+    stat.textContent = 'Tracker: off';
+    badge.textContent = 'OFF';
+    badge.className = 'tracker-status-badge';
+    if (btn) btn.textContent = 'Start Tracking';
+  }
+}
+
+function setLastUpdate(text, isErr=false) {
+  const el = document.getElementById('tracker-last-update');
+  if (!el) return;
+  el.innerHTML = `
+    <span style="${isErr ? 'color:var(--red)' : ''}">${text}</span>
+    <button class="btn btn-ghost" onclick="toggleTracking()" style="padding:1px 8px;font-size:9px">
+      ${trackingActive ? 'Stop Tracking' : 'Start Tracking'}
+    </button>`;
+}
+
+// (tracker fields are now integrated directly into saveSettings/loadCfg above,
+//  and initTracking() is called at the end of initMap())
+</script>
+</body>
+</html>
